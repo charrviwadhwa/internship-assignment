@@ -25,9 +25,8 @@ export const transactions = pgTable("transactions", {
   description: text("description"),
   date: timestamp("date").defaultNow().notNull(),
   userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
-  deletedAt: timestamp("deleted_at"), // Soft delete
+  deletedAt: timestamp("deleted_at"),
 }, (table) => ({
-  
   userDateIdx: index("user_date_idx").on(table.userId, table.date),
 }));
 

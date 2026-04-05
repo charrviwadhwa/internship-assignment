@@ -1,14 +1,39 @@
-import express from "express";
 import 'dotenv/config';
+import express from "express";
+import { rateLimit } from 'express-rate-limit';
+
+import { register, login } from "./controllers/auth.js";
+import { 
+  createTransaction, 
+  getTransactions, 
+  getDashboardSummary, 
+  deleteTransaction 
+} from "./controllers/finance.js";
 import { authorize } from "./middleware/auth.js";
-import { addTransaction, getDashboardSummary } from "./controllers/finance.js";
 
 const app = express();
+
 app.use(express.json());
 
-// Financial Routes
-app.post("/api/records", authorize(["ADMIN"]), addTransaction);
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100, 
+  message: { error: "Too many requests, please try again later." }
+});
+
+app.use("/auth/", limiter);
+app.use("/api/", limiter);
+
+app.post("/auth/register", register);
+app.post("/auth/login", login);
+
+app.post("/api/transactions", authorize(["ADMIN"]), createTransaction);
+app.delete("/api/transactions/:id", authorize(["ADMIN"]), deleteTransaction);
+
+app.get("/api/transactions", authorize(["ADMIN", "ANALYST", "VIEWER"]), getTransactions);
 app.get("/api/dashboard", authorize(["ADMIN", "ANALYST", "VIEWER"]), getDashboardSummary);
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+const PORT = 3000;
+app.listen(PORT, () => {
+  console.log(`Backend running on http://localhost:${PORT}`);
+});

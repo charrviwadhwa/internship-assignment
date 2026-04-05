@@ -10,7 +10,6 @@ export const register = async (req, res) => {
   const { email, password, role } = req.body;
 
   try {
-   
     const existingUser = await db.select().from(users).where(eq(users.email, email));
     if (existingUser.length > 0) {
       return res.status(400).json({ message: "User already exists" });
@@ -18,7 +17,6 @@ export const register = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-   
     const [newUser] = await db.insert(users).values({
       email,
       passwordHash: hashedPassword,
@@ -40,13 +38,11 @@ export const login = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // 1. Fetch user by email
     const [user] = await db.select().from(users).where(eq(users.email, email));
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid credentials" });
