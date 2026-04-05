@@ -7,6 +7,7 @@ import {
   createTransaction, 
   getTransactions, 
   getDashboardSummary, 
+  updateTransaction,
   deleteTransaction 
 } from "./controllers/finance.js";
 import { authorize } from "./middleware/auth.js";
@@ -28,6 +29,7 @@ app.post("/auth/register", register);
 app.post("/auth/login", login);
 
 app.post("/api/transactions", authorize(["ADMIN"]), createTransaction);
+app.patch("/api/transactions/:id", authorize(["ADMIN"]), updateTransaction);
 app.delete("/api/transactions/:id", authorize(["ADMIN"]), deleteTransaction);
 
 app.get("/api/transactions", authorize(["ADMIN", "ANALYST", "VIEWER"]), getTransactions);

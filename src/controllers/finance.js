@@ -54,32 +54,88 @@ export const getTransactions = async (req, res) => {
 };
 
 export const getDashboardSummary = async (req, res) => {
+  const userId = req.user.id;
+
   try {
-    const visibilityFilter = req.user.role === "ADMIN" 
-      ? eq(transactions.userId, req.user.id) 
+    
+    const baseFilter = (req.user.role === 'ADMIN') 
+      ? eq(transactions.userId, userId) 
       : isNull(transactions.deletedAt);
 
-    const summary = await db
-      .select({
+    
+    const [totals, categoryTotals, recentActivity, monthlyTrends] = await Promise.all([
+      
+      db.select({
         type: transactions.type,
         total: sql`sum(${transactions.amount})`.mapWith(Number),
-      })
-      .from(transactions)
-      .where(and(visibilityFilter, isNull(transactions.deletedAt)))
-      .groupBy(transactions.type);
+      }).from(transactions).where(baseFilter).groupBy(transactions.type),
 
-    const income = summary.find(s => s.type === 'INCOME')?.total || 0;
-    const expense = summary.find(s => s.type === 'EXPENSE')?.total || 0;
+      
+      db.select({
+        category: transactions.category,
+        total: sql`sum(${transactions.amount})`.mapWith(Number),
+      }).from(transactions).where(baseFilter).groupBy(transactions.category),
+
+      db.select().from(transactions).where(baseFilter).orderBy(desc(transactions.date)).limit(5),
+
+      db.select({
+        month: sql`to_char(${transactions.date}, 'YYYY-MM')`,
+        totalIncome: sql`sum(case when ${transactions.type} = 'INCOME' then ${transactions.amount} else 0 end)`.mapWith(Number),
+        totalExpense: sql`sum(case when ${transactions.type} = 'EXPENSE' then ${transactions.amount} else 0 end)`.mapWith(Number),
+      }).from(transactions).where(baseFilter).groupBy(sql`to_char(${transactions.date}, 'YYYY-MM')`).orderBy(sql`to_char(${transactions.date}, 'YYYY-MM')`)
+    ]);
+
+    const income = totals.find(t => t.type === 'INCOME')?.total || 0;
+    const expense = totals.find(t => t.type === 'EXPENSE')?.total || 0;
 
     res.json({
-      totalIncome: income,
-      totalExpenses: expense,
-      netBalance: income - expense,
-      viewingAs: req.user.role,
+      summary: {
+        totalIncome: income,
+        totalExpenses: expense,
+        netBalance: income - expense,
+      },
+      categoryBreakdown: categoryTotals,
+      recentTransactions: recentActivity,
+      trends: monthlyTrends,
       timestamp: new Date().toISOString()
     });
+
   } catch (error) {
-    res.status(500).json({ error: "Aggregation failed" });
+    res.status(500).json({ error: "Dashboard analytics failed" });
+  }
+};
+
+
+export const updateTransaction = async (req, res) => {
+  const { id } = req.params;
+  const { amount, type, category, description, date } = req.body;
+
+  try {
+    const [updatedRecord] = await db
+      .update(transactions)
+      .set({
+        amount: amount ? amount.toString() : undefined,
+        type,
+        category,
+        description,
+        date: date ? new Date(date) : undefined,
+      })
+      .where(
+        and(
+          eq(transactions.id, id),
+          eq(transactions.userId, req.user.id), 
+          isNull(transactions.deletedAt)       
+        )
+      )
+      .returning();
+
+    if (!updatedRecord) {
+      return res.status(404).json({ error: "Record not found or unauthorized" });
+    }
+
+    res.json(updatedRecord);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to update transaction" });
   }
 };
 

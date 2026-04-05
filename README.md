@@ -1,36 +1,36 @@
 
+
 # Finance Dashboard Backend
 
-A role-based backend system built with Node.js (ESM), Express, and Neon PostgreSQL. This system manages financial transactions, user roles, and real-time dashboard analytics with a focus on data integrity and security.
+This is a clean, role-based backend designed to handle financial data without the headaches. I built it using **Node.js**, **Express**, and **Neon PostgreSQL** to ensure it's fast, secure, and actually handles real-world scenarios like rounding errors and accidental deletions.
 
-## Key Features
-* **Role-Based Access Control (RBAC)**: Custom middleware to enforce ADMIN, ANALYST, and VIEWER permissions.
-* **Real-time Aggregation**: Dashboard summaries using SQL-level grouping and summation.
-* **Data Reliability**: Soft-delete functionality and decimal-string precision for financial records.
-* **Security**: JWT-based authentication, Bcrypt password hashing, and API Rate Limiting.
-* **Modern Stack**: Fully asynchronous ESM implementation with Drizzle ORM.
+## What it actually does
 
-## Tech Stack
-* **Runtime**: Node.js (v18+)
-* **Framework**: Express.js
-* **Database**: Neon PostgreSQL (Serverless)
-* **ORM**: Drizzle ORM
-* **Security**: JSON Web Tokens (JWT), Bcrypt.js, Express-Rate-Limit
+* **Smart Permissions**: Access is strictly controlled. I set up three tiers: `ADMIN` (Full control), `ANALYST` (Can see data and insights), and `VIEWER` (Read-only access to the dashboard).
+* **Deep Analytics**: The dashboard isn't just a list; it’s an engine. It automatically calculates total income vs. expenses, breaks down spending by category, shows recent activity snapshots, and tracks monthly trends.
+* **Safety First (Soft Deletes)**: In finance, deleting data permanently is risky. If an Admin "deletes" a transaction, it’s just hidden from the app via a `deleted_at` timestamp. This keeps a permanent audit trail for peace of mind.
+* **Math Accuracy**: JavaScript is notoriously bad at math with decimals (like 0.1 + 0.2). To fix this, I stored all currency values as high-precision strings so the totals are always 100% accurate.
+* **Speed & Scalability**: 
+    * **Parallel Queries**: The dashboard uses `Promise.all` to fetch totals, categories, and trends simultaneously, making it feel instant.
+    * **Pagination**: To prevent the app from slowing down as the database grows, I added `limit` and `offset` logic to all record listings.
+    * **Search**: Built-in search lets you filter through transactions by category or description in seconds.
 
-## Logical Assumptions and Trade-offs
+## The Tech Behind It
 
-### 1. Data Visibility Model
-**Decision**: Implemented a Shared Visibility Model for read operations.
-* **Reasoning**: In a corporate dashboard, Analysts and Viewers audit the organization's health. While only Admins can modify data, all authorized roles can view the global summary.
-* **Trade-off**: This prioritizes organizational transparency over individual user silos.
+* **Language**: Node.js 
+* **Database**: Neon PostgreSQL (Serverless & fast)
+* **ORM**: Drizzle (Keeps the code clean and SQL-like)
+* **Security**: JWT for stateless logins, Bcrypt for password hashing, and **Rate Limiting** to stop bots from spamming the auth or API endpoints.
 
-### 2. Soft Deletion
-**Decision**: Transactions are marked with a `deleted_at` timestamp rather than being hard-deleted.
-* **Reasoning**: Financial records require an audit trail. Soft deletion prevents accidental data loss and allows for administrative recovery.
+## Why I made these choices
 
-### 3. Financial Precision
-**Decision**: Storing amounts as Decimal (mapped to Strings in JS).
-* **Reasoning**: Using standard JavaScript Number (Float) for currency leads to rounding errors. String-based decimals ensure mathematical accuracy for balance calculations.
+### 1. Shared Visibility
+I decided that Viewers and Analysts should see the "big picture." Even if they didn't create the records, they can see the organization's total health and trends. Admins remain the only ones allowed to actually change the numbers.
+
+### 2. Defensive Engineering
+By using Soft Deletes and Rate Limiting, the system is protected against both accidental human error (deleting important data) and malicious intent (brute-force login attempts).
+
+---
 
 ## Setup and Installation
 
@@ -38,13 +38,13 @@ A role-based backend system built with Node.js (ESM), Express, and Neon PostgreS
     ```bash
     npm install
     ```
-2.  **Environment Variables**: Create a `.env` file in the root:
+2.  **Set your Secrets**: Create a `.env` file in the root:
     ```env
     DATABASE_URL=your_neon_postgresql_url
     JWT_SECRET=your_secure_random_string
     PORT=3000
     ```
-3.  **Database Migration**: Sync the schema to the Neon instance:
+3.  **Sync the Database**: Push the schema structure to Neon:
     ```bash
     npx drizzle-kit push
     ```
@@ -52,6 +52,8 @@ A role-based backend system built with Node.js (ESM), Express, and Neon PostgreS
     ```bash
     node src/index.js
     ```
+
+---
 
 ## API Documentation
 
@@ -65,17 +67,20 @@ A role-based backend system built with Node.js (ESM), Express, and Neon PostgreS
 | Endpoint | Method | Role Required | Description |
 | :--- | :--- | :--- | :--- |
 | `/api/transactions` | POST | ADMIN | Create a new financial entry |
-| `/api/transactions` | GET | ANY | List records (Supports `?page=1&search=X`) |
-| `/api/dashboard` | GET | ANY | Get Income/Expense/Balance summary |
-| `/api/transactions/:id` | DELETE | ADMIN | Soft-delete a specific record |
+| `/api/transactions` | GET | ANY | List records (Supports `?page=1&limit=10&search=X`) |
+| `/api/transactions/:id`| PATCH | ADMIN | Update an existing record |
+| `/api/transactions/:id`| DELETE | ADMIN | Soft-delete a specific record |
+| `/api/dashboard` | GET | ANY | Get Totals, Categories, Recent Activity, and Trends |
+
+---
 
 ## Project Structure
 ```text
 ├── src/
-│   ├── controllers/   # Business logic (Auth & Finance)
+│   ├── controllers/   # The "brains" (Auth, CRUD, & Dashboard Aggregation)
 │   ├── db/            # Database connection & Drizzle Schema
-│   ├── middleware/    # Auth & Role-based guards
-│   └── index.js       # Entry point & Route definitions
+│   ├── middleware/    # Security guards (JWT & Role-based checks)
+│   └── index.js       # Main entry point, Rate limiting, & Route definitions
 ├── .env               # Configuration
 ├── drizzle.config.js  # ORM configuration
 └── package.json       # Dependencies & Scripts
