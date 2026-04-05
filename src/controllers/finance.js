@@ -26,9 +26,7 @@ export const getTransactions = async (req, res) => {
   const offset = (page - 1) * limit;
 
   try {
-    const visibilityFilter = req.user.role === "ADMIN" 
-      ? eq(transactions.userId, req.user.id) 
-      : isNull(transactions.deletedAt);
+    const visibilityFilter = isNull(transactions.deletedAt);
 
     const userRecords = await db
       .select()
@@ -105,51 +103,73 @@ export const getDashboardSummary = async (req, res) => {
   }
 };
 
-
 export const updateTransaction = async (req, res) => {
   const { id } = req.params;
   const { amount, type, category, description, date } = req.body;
 
   try {
+    
+    const updateData = {};
+    if (amount !== undefined) updateData.amount = amount.toString();
+    if (type) updateData.type = type;
+    if (category) updateData.category = category;
+    if (description) updateData.description = description;
+    if (date) updateData.date = new Date(date);
+
+   
     const [updatedRecord] = await db
       .update(transactions)
-      .set({
-        amount: amount ? amount.toString() : undefined,
-        type,
-        category,
-        description,
-        date: date ? new Date(date) : undefined,
-      })
+      .set(updateData)
       .where(
         and(
           eq(transactions.id, id),
-          eq(transactions.userId, req.user.id), 
-          isNull(transactions.deletedAt)       
+
+          req.user.role === "ADMIN" ? undefined : eq(transactions.userId, req.user.id),
+          isNull(transactions.deletedAt)
         )
       )
       .returning();
 
     if (!updatedRecord) {
-      return res.status(404).json({ error: "Record not found or unauthorized" });
+      return res.status(404).json({ error: "Transaction not found or unauthorized" });
     }
 
     res.json(updatedRecord);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: "Failed to update transaction" });
   }
 };
 
 export const deleteTransaction = async (req, res) => {
   const { id } = req.params;
+
   try {
-    const result = await db.update(transactions)
+    const [existingTransaction] = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.id, id))
+      .limit(1);
+
+    if (!existingTransaction) {
+      return res.status(404).json({ error: "Transaction not found" });
+    }
+
+    if (existingTransaction.deletedAt) {
+      return res.status(200).json({
+        message: "Transaction already deleted",
+        deletedRecord: existingTransaction
+      });
+    }
+
+    const [deletedRecord] = await db
+      .update(transactions)
       .set({ deletedAt: new Date() })
-      .where(and(eq(transactions.id, id), eq(transactions.userId, req.user.id)))
+      .where(eq(transactions.id, id))
       .returning();
 
-    if (result.length === 0) return res.status(404).json({ error: "Record not found or unauthorized" });
-    res.json({ message: "Transaction soft-deleted" });
+    res.json({ message: "Transaction deleted successfully", deletedRecord });
   } catch (error) {
-    res.status(500).json({ error: "Delete failed" });
+    res.status(500).json({ error: "Failed to delete transaction" });
   }
 };

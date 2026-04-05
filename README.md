@@ -56,6 +56,7 @@ By using Soft Deletes and Rate Limiting, the system is protected against both ac
 ---
 
 ## API Documentation
+[Click here to view the API Documentation](https://documenter.getpostman.com/view/37710462/2sBXiqE8cX)
 
 ### Authentication
 | Endpoint | Method | Body | Description |
