@@ -19,12 +19,13 @@
   },
   "homepage": "https://github.com/charrviwadhwa/internship-assignment#readme",
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.5.0",
     "dotenv": "^17.4.0",
     "drizzle-kit": "^0.31.10",
-    "ts-node": "^10.9.2",
-    "typescript": "^6.0.2"
+    "ts-node": "^10.9.2"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
